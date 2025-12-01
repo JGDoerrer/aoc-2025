@@ -1,64 +1,75 @@
 advent_of_code::solution!(1);
 
 pub fn part_one(input: &str) -> Option<u64> {
-    Some(
-        input
-            .lines()
-            .fold((50, 0), |(state, count), line| {
-                let bytes = line.as_bytes();
-                let mut num = 0;
+    let mut bytes = input.as_bytes().into_iter().copied();
 
-                for i in 1..bytes.len() {
-                    num = num * 10 + (bytes[i] - '0' as u8) as u64;
-                }
+    let mut state = 50;
+    let mut count = 0;
 
-                let turn = if bytes[0] == 'L' as u8 {
-                    100 - num % 100
-                } else {
-                    num
-                };
+    loop {
+        let mut num = 0;
 
-                (
-                    state + turn,
-                    count + if (state + turn) % 100 == 0 { 1 } else { 0 },
-                )
-            })
-            .1,
-    )
+        let Some(char) = bytes.next() else {
+            break;
+        };
+        let left = char == 'L' as u8;
+
+        loop {
+            let char = bytes.next().unwrap();
+            const NEWLINE: u8 = '\n' as u8;
+
+            match char {
+                NEWLINE => break,
+                _ => num = num * 10 + (char - '0' as u8) as u64,
+            };
+        }
+
+        state += if left { 100 - num % 100 } else { num };
+        count += if state % 100 == 0 { 1 } else { 0 };
+    }
+
+    Some(count)
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    Some(
-        input
-            .lines()
-            .map(|line| {
-                let bytes = line.as_bytes();
-                let mut num = 0;
+    let mut bytes = input.as_bytes().into_iter().copied();
 
-                for i in 1..bytes.len() {
-                    num = num * 10 + (bytes[i] - '0' as u8) as u64;
-                }
+    let mut state = 50;
+    let mut count = 0;
 
-                (bytes[0] == 'L' as u8, num)
-            })
-            .fold((50, 0), |(mut state, mut count), (left, turn)| {
-                if left {
-                    if state != 0 && state <= turn % 100 {
-                        count += 1;
-                    }
-                    count += turn / 100;
+    loop {
+        let mut num = 0;
 
-                    state = (state + (100 - turn % 100)) % 100;
-                } else {
-                    count += (state + turn) / 100;
+        let Some(char) = bytes.next() else {
+            break;
+        };
+        let left = char == 'L' as u8;
 
-                    state = (state + turn) % 100;
-                }
+        loop {
+            let char = bytes.next().unwrap();
+            const NEWLINE: u8 = '\n' as u8;
 
-                (state, count)
-            })
-            .1,
-    )
+            match char {
+                NEWLINE => break,
+                _ => num = num * 10 + (char - '0' as u8) as u64,
+            };
+        }
+
+        if left {
+            if state != 0 && state <= num % 100 {
+                count += 1;
+            }
+            count += num / 100;
+
+            state = (state + (100 - num % 100)) % 100;
+        } else {
+            count += (state + num) / 100;
+
+            state = (state + num) % 100;
+        }
+    }
+
+    Some(count)
 }
 
 #[cfg(test)]
