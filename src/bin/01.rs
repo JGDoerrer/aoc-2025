@@ -4,17 +4,22 @@ pub fn part_one(input: &str) -> Option<u64> {
     Some(
         input
             .lines()
-            .map(|line| {
-                let turn: u64 = if line.bytes().nth(0).unwrap() == 'L' as u8 {
-                    100 - ((line[1..].parse::<u64>().unwrap()) % 100)
+            .fold((50, 0), |(state, count), line| {
+                let bytes = line.as_bytes();
+                let mut num = 0;
+
+                for i in 1..bytes.len() {
+                    num = num * 10 + (bytes[i] - '0' as u8) as u64;
+                }
+
+                let turn = if bytes[0] == 'L' as u8 {
+                    100 - num % 100
                 } else {
-                    line[1..].parse().unwrap()
+                    num
                 };
-                turn
-            })
-            .fold((50, 0), |(state, count), turn| {
+
                 (
-                    (state + turn) % 100,
+                    state + turn,
                     count + if (state + turn) % 100 == 0 { 1 } else { 0 },
                 )
             })
@@ -27,25 +32,27 @@ pub fn part_two(input: &str) -> Option<u64> {
         input
             .lines()
             .map(|line| {
-                let turn: u64 = line[1..].parse().unwrap();
-                let left = line.bytes().nth(0).unwrap() == 'L' as u8;
-                (left, turn)
+                let bytes = line.as_bytes();
+                let mut num = 0;
+
+                for i in 1..bytes.len() {
+                    num = num * 10 + (bytes[i] - '0' as u8) as u64;
+                }
+
+                (bytes[0] == 'L' as u8, num)
             })
             .fold((50, 0), |(mut state, mut count), (left, turn)| {
                 if left {
-                    for _ in 0..turn {
-                        state = (state + 99) % 100;
-                        if state == 0 {
-                            count += 1;
-                        }
+                    if state != 0 && state <= turn % 100 {
+                        count += 1;
                     }
+                    count += turn / 100;
+
+                    state = (state + (100 - turn % 100)) % 100;
                 } else {
-                    for _ in 0..turn {
-                        state = (state + 1) % 100;
-                        if state == 0 {
-                            count += 1;
-                        }
-                    }
+                    count += (state + turn) / 100;
+
+                    state = (state + turn) % 100;
                 }
 
                 (state, count)
@@ -67,6 +74,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(6));
     }
 }
