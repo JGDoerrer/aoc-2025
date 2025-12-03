@@ -17,7 +17,7 @@ pub fn part_one(input: &str) -> Option<u64> {
     let mut total = 0;
     for (min, max) in ranges {
         let mut num = min;
-        while num < max {
+        while num <= max {
             let digits = num.ilog10() + 1;
             if digits % 2 != 0 {
                 num = POWERS[digits as usize];
