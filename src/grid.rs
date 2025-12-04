@@ -3,7 +3,7 @@ use std::{
     vec::IntoIter,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Grid<T> {
     data: Vec<T>,
     width: usize,
@@ -106,6 +106,26 @@ impl<T> Grid<T> {
             1 => (col > 0).then(|| (row, col - 1)),
             2 => (row < self.width - 1).then(|| (row + 1, col)),
             3 => (col < self.height - 1).then(|| (row, col + 1)),
+            _ => unreachable!(),
+        })
+    }
+
+    pub fn neighbours8(
+        &self,
+        (row, col): (usize, usize),
+    ) -> impl Iterator<Item = (usize, usize)> + '_ {
+        (0..8).filter_map(move |i| match i {
+            0 => (row > 0 && col > 0).then(|| (row - 1, col - 1)),
+            1 => (row > 0).then(|| (row - 1, col)),
+            2 => (row > 0 && col < self.height - 1).then(|| (row - 1, col + 1)),
+
+            3 => (col > 0).then(|| (row, col - 1)),
+
+            4 => (col < self.height - 1).then(|| (row, col + 1)),
+
+            5 => (row < self.width - 1 && col > 0).then(|| (row + 1, col - 1)),
+            6 => (row < self.width - 1).then(|| (row + 1, col)),
+            7 => (row < self.width - 1 && col < self.height - 1).then(|| (row + 1, col + 1)),
             _ => unreachable!(),
         })
     }
