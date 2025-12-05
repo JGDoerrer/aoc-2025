@@ -3,7 +3,7 @@ use std::{
     vec::IntoIter,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Grid<T> {
     data: Vec<T>,
     width: usize,
@@ -227,5 +227,15 @@ impl<T> Index<(usize, usize)> for Grid<T> {
 impl<T> IndexMut<(usize, usize)> for Grid<T> {
     fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
         self.get_mut(index).unwrap()
+    }
+}
+
+impl<T: Clone> Clone for Grid<T> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            width: self.width.clone(),
+            height: self.height.clone(),
+        }
     }
 }
