@@ -28,6 +28,60 @@ impl<T: Clone> Grid<T> {
             height,
         }
     }
+
+    pub fn from_vec_rows(vecs: &[Vec<T>]) -> Option<Self> {
+        let height = vecs.len();
+
+        let Some(width) = vecs.get(0).map(|v| v.len()) else {
+            return None;
+        };
+
+        for row in vecs {
+            if row.len() != width {
+                return None;
+            }
+        }
+
+        let data: Vec<_> = vecs.iter().flat_map(|v| v.iter()).cloned().collect();
+
+        Some(Self {
+            data,
+            width,
+            height,
+        })
+    }
+
+    pub fn rotated_clockwise(&self) -> Grid<T> {
+        let mut new_data = Vec::with_capacity(self.data.len());
+
+        for row in 0..self.height {
+            for col in (0..self.width).rev() {
+                new_data.push(self.get((col, row)).unwrap().clone());
+            }
+        }
+
+        Grid {
+            data: new_data,
+            width: self.height,
+            height: self.width,
+        }
+    }
+
+    pub fn rotated_counterclockwise(&self) -> Grid<T> {
+        let mut new_data = Vec::with_capacity(self.data.len());
+
+        for row in (0..self.height).rev() {
+            for col in 0..self.width {
+                new_data.push(self.get((col, row)).unwrap().clone());
+            }
+        }
+
+        Grid {
+            data: new_data,
+            width: self.height,
+            height: self.width,
+        }
+    }
 }
 
 impl<T> Grid<T> {
@@ -82,10 +136,18 @@ impl<T> Grid<T> {
     }
 
     pub fn get(&self, (row, col): (usize, usize)) -> Option<&T> {
+        if row >= self.height || col >= self.width {
+            return None;
+        }
+
         self.data.get(row * self.width + col)
     }
 
     pub fn get_mut(&mut self, (row, col): (usize, usize)) -> Option<&mut T> {
+        if row >= self.height || col >= self.width {
+            return None;
+        }
+
         self.data.get_mut(row * self.width + col)
     }
 
@@ -94,7 +156,21 @@ impl<T> Grid<T> {
     }
 
     pub fn set(&mut self, (row, col): (usize, usize), t: T) {
+        if row >= self.height || col >= self.width {
+            return;
+        }
+
         self.data[row * self.width + col] = t;
+    }
+
+    pub fn positions(&self) -> impl Iterator<Item = (usize, usize)> {
+        (0..self.height).flat_map(|row| (0..self.width).map(move |col| (row, col)))
+    }
+
+    pub fn position_values(&self) -> impl Iterator<Item = ((usize, usize), &T)> {
+        (0..self.height).flat_map(move |row| {
+            (0..self.width).map(move |col| ((row, col), self.get((row, col)).unwrap()))
+        })
     }
 
     pub fn neighbours4(
