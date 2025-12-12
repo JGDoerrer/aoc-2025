@@ -23,6 +23,14 @@ where
         }
     }
 
+    pub fn contains(&self, t: &T) -> bool {
+        self.0.contains_key(t)
+    }
+
+    pub fn get_count(&self, t: &T) -> usize {
+        self.0.get(t).copied().unwrap_or_default()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }

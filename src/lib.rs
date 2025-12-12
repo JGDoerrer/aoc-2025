@@ -5,6 +5,8 @@ use std::{
     hash::Hash,
 };
 
+use crate::counting_set::CountingSet;
+
 pub mod template;
 
 // Use this file to add helper functions and additional modules.
@@ -139,6 +141,37 @@ where
     }
 
     None
+}
+
+pub fn pathfind_num_ways<State, Neighbours, I>(
+    start: State,
+    end: State,
+    neighbours: Neighbours,
+) -> usize
+where
+    State: Ord + Hash + Clone,
+    Neighbours: Fn(&State) -> I,
+    I: Iterator<Item = State>,
+{
+    let mut queue = CountingSet::new();
+    queue.insert(start);
+    let mut visited = CountingSet::new();
+
+    while !queue.is_empty() {
+        let mut new_queue = CountingSet::new();
+
+        for (state, count) in queue {
+            for n in neighbours(&state) {
+                new_queue.insert_count(n, count);
+            }
+
+            visited.insert_count(state, count);
+        }
+
+        queue = new_queue;
+    }
+
+    visited.get_count(&end)
 }
 
 pub fn a_star_cost<State, CostFn, HFn, Neighbours, End, I>(
