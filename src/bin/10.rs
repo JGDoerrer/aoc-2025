@@ -1,4 +1,4 @@
-use std::{mem, slice::SliceIndex};
+use std::{cmp::Reverse, usize};
 
 advent_of_code::solution!(10);
 
@@ -133,12 +133,23 @@ impl Iterator for PartitionIter {
         if self.n == 0 {
             let done = self.i == 1;
             self.i = 1;
-            return if done { None } else { Some(Vec::new()) };
+            return if done {
+                None
+            } else {
+                Some(Vec::with_capacity(16))
+            };
         }
         if self.n == 1 {
             let done = self.i == 1;
             self.i = 1;
-            return if done { None } else { Some(vec![self.sum]) };
+
+            return if done {
+                None
+            } else {
+                let mut vec = Vec::with_capacity(16);
+                vec.push(self.sum);
+                Some(vec)
+            };
         }
 
         if let Some(prev) = &mut self.prev {
@@ -161,30 +172,90 @@ impl Iterator for PartitionIter {
     }
 }
 
-fn partitions(sum: usize, n: usize) -> Vec<Vec<usize>> {
+fn next_partition(sum: usize, partition: &mut [usize], state: &mut [usize]) -> bool {
+    if state.is_empty() {
+        return true;
+    }
+    if state.len() == 1 {
+        let last = state[0] != 0;
+        state[0] = sum;
+        partition[0] = sum;
+
+        return last;
+    }
+
+    if state[0] >= sum {
+        state[0] = 0;
+        return true;
+    }
+
+    let prev_last = next_partition(sum - state[0], &mut partition[1..], &mut state[1..]);
+
+    if prev_last {
+        state[0] += 1;
+        for i in 1..state.len() {
+            state[i] = 0;
+        }
+        let prev_last = next_partition(sum - state[0], &mut partition[1..], &mut state[1..]);
+
+        if prev_last {
+            partition[0] = state[0];
+
+            for i in 1..partition.len() {
+                partition[i] = 0;
+            }
+            return false;
+        }
+    }
+
+    partition[0] = state[0];
+
+    false
+}
+
+fn num_partitions(sum: usize, n: usize) -> usize {
     if n == 0 {
-        return Vec::new();
+        return 0;
     }
     if n == 1 {
-        return vec![vec![sum]];
+        return 1;
+    }
+    if n == 2 {
+        return sum + 1;
+    }
+    if n == 3 {
+        return sum + 1 + (sum + 1) * sum / 2;
     }
 
-    let mut result = Vec::new();
+    let mut result = 0;
 
     for i in 0..=sum {
-        let p = partitions(sum - i, n - 1);
-        result.extend(p.into_iter().map(|mut p| {
-            p.insert(0, i);
-            p
-        }));
+        result += num_partitions(sum - i, n - 1);
     }
 
     result
 }
 
-fn solve_rec(buttons: Vec<Vec<usize>>, target: Vec<usize>) -> Option<u64> {
-    if target.is_empty() {
+fn solve_rec(buttons: Vec<Vec<usize>>, target: Vec<usize>, max_presses: u64) -> Option<u64> {
+    if target.iter().all(|c| *c == 0) {
         return Some(0);
+    }
+    if buttons.is_empty() {
+        return None;
+    }
+    let (buttons, target) = sort(buttons, target);
+
+    if target.last().is_some_and(|c| *c == 0) {
+        let mut target = target;
+        target.pop();
+        let buttons = buttons
+            .into_iter()
+            .map(|b| b.into_iter().filter(|i| *i != target.len()).collect())
+            .collect();
+        return solve_rec(buttons, target, max_presses);
+    }
+    if target.last().is_some_and(|c| *c > max_presses as usize) {
+        return None;
     }
 
     let affecting_buttons: Vec<_> = buttons
@@ -203,18 +274,15 @@ fn solve_rec(buttons: Vec<Vec<usize>>, target: Vec<usize>) -> Option<u64> {
 
     let mut min_presses = u64::MAX;
 
-    // dbg!(
-    //     partitions(sum, affecting_buttons.len()),
-    //     PartitionIter::new(sum, affecting_buttons.len()).collect::<Vec<_>>()
-    // );
-    // todo!();
+    let mut state = &mut [0; 10][0..affecting_buttons.len()];
+    let mut p = &mut [0; 10][0..affecting_buttons.len()];
 
-    'partitions: for p in PartitionIter::new(sum, affecting_buttons.len()) {
+    'partitions: while !next_partition(sum, &mut p, &mut state) {
         let mut target_left = target.clone();
 
-        for (i, presses) in p.into_iter().enumerate() {
+        for (i, presses) in p.iter().enumerate() {
             for b in &buttons[affecting_buttons[i]] {
-                if target_left[*b] < presses {
+                if target_left[*b] < *presses {
                     continue 'partitions;
                 }
 
@@ -222,19 +290,21 @@ fn solve_rec(buttons: Vec<Vec<usize>>, target: Vec<usize>) -> Option<u64> {
             }
         }
 
+        let to_remove: Vec<_> = target_left
+            .iter()
+            .enumerate()
+            .filter_map(|(i, c)| (*c == 0).then_some(i))
+            .collect();
+
         let new_buttons = buttons
             .iter()
-            .map(|b| {
-                let mut b = b.clone();
-                b.retain(|n| *n != target.len() - 1);
-                b
-            })
-            .filter(|b| !b.is_empty())
+            .filter(|b| to_remove.iter().all(|r| !b.contains(r)))
+            .cloned()
             .collect();
         debug_assert_eq!(target_left.last(), Some(&0));
         target_left.pop();
 
-        if let Some(presses) = solve_rec(new_buttons, target_left) {
+        if let Some(presses) = solve_rec(new_buttons, target_left, min_presses.saturating_sub(1)) {
             min_presses = min_presses.min(sum as u64 + presses);
         }
     }
@@ -252,7 +322,7 @@ pub fn part_two(input: &str) -> Option<u64> {
         .map(|line| {
             let split = line.split_once(']').unwrap();
             let rest: Vec<_> = split.1[1..].split(' ').collect();
-            let buttons: Vec<Vec<_>> = rest[..rest.len() - 1]
+            let mut buttons: Vec<Vec<_>> = rest[..rest.len() - 1]
                 .iter()
                 .map(|b| {
                     b[1..b.len() - 1]
@@ -261,6 +331,7 @@ pub fn part_two(input: &str) -> Option<u64> {
                         .collect()
                 })
                 .collect();
+            buttons.sort_by_key(|b| b.len());
             let counters = rest.last().unwrap();
             let counters: Vec<usize> = counters[1..counters.len() - 1]
                 .split(',')
@@ -273,11 +344,41 @@ pub fn part_two(input: &str) -> Option<u64> {
 
     let mut total = 0;
 
-    for (buttons, counters) in input {
-        total += dbg!(solve_rec(buttons, counters).unwrap());
+    for (i, (buttons, target)) in input.into_iter().enumerate() {
+        total += dbg!(solve_rec(buttons, target, u64::MAX).unwrap());
+        dbg!(i, total);
     }
 
     Some(total)
+}
+
+fn sort(buttons: Vec<Vec<usize>>, target: Vec<usize>) -> (Vec<Vec<usize>>, Vec<usize>) {
+    let mut counters: Vec<_> = target.into_iter().enumerate().collect();
+    counters.sort_by_cached_key(|(i, c)| {
+        Reverse({
+            let sum = *c;
+            let n = buttons
+                .iter()
+                .enumerate()
+                .filter_map(|(j, b)| if b.contains(&i) { Some(j) } else { None })
+                .count();
+
+            num_partitions(sum, n)
+        })
+    });
+
+    // dbg!(&buttons, &counters);
+    let buttons = buttons
+        .into_iter()
+        .map(|b| {
+            b.into_iter()
+                .map(|b| counters.iter().position(|(i, _)| *i == b).unwrap())
+                .collect()
+        })
+        .collect();
+
+    let counters = counters.into_iter().map(|(_, c)| c).collect();
+    (buttons, counters)
 }
 
 #[cfg(test)]
